@@ -1,0 +1,124 @@
+---
+title: "FML Assignment 2"
+author: "Ritika"
+date: "2023-10-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+#install.package(Caret)
+#install.package(ISLR)
+#install.package(dplyr)
+#install.package(class)
+library('caret')
+library('ISLR')
+library('dplyr')
+library('class')
+#importing the dataset universal_bank
+Universal_bank <- read.csv("C:/Users/User/Downloads/UniversalBank.csv")
+head(Universal_bank)
+```
+```{r}
+#removing ID and ZIP code from the dataset 
+Universal_bank$ID <- NULL
+Universal_bank$ZIP.Code <- NULL
+summary(Universal_bank)
+set.seed(567)
+```
+
+```{r}
+#deleting the "ID" and "ZIP Code" columns from an existing data collection, then normalizing
+Universal_bank$Personal.Loan =  as.factor(Universal_bank$Personal.Loan)
+Norm_model <- preProcess(Universal_bank[, -8],method = c("center", "scale"))
+Bank_norm <- predict(Norm_model,Universal_bank)
+summary(Bank_norm)
+
+```
+
+```{r}
+#creating dummy variable
+Universal_bank$high_school <- ifelse(Universal_bank$Education == "1", 1, 0)
+Universal_bank$under_grad <- ifelse(Universal_bank$Education == "2", 1, 0)
+Universal_bank$grad <- ifelse(Universal_bank$Education == "3", 1, 0)
+str(Universal_bank)
+
+
+```
+```{r}
+#Removing variables from the dataset.
+Universal_bank= subset(Universal_bank, select = -c(Education) )
+str(Universal_bank)
+```
+```{r}
+#1 Question
+#dividing the data into 40% validation and 60% training
+Train_index <- createDataPartition(Universal_bank$Personal.Loan, p = 0.7, list = FALSE)
+train.df = Bank_norm[Train_index,]
+validation.df = Bank_norm[-Train_index,]
+#Prediction 
+ub.predict_Norm = data.frame(Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, high_school = 0, under_graduation = 1, graduation = 0, Mortgage = 0, Securities.Account =0, CD.Account = 0, Online = 1, CreditCard = 1)
+dim(train.df)
+dim(ub.predict_Norm)
+print(ub.predict_Norm)
+prediction <- class::knn(train=as.data.frame(train.df),test=as.data.frame(ub.predict_Norm[,-c(7)]),cl=train.df$Personal.Loan, k=1)
+print(prediction)
+```
+```{r}
+#2 Question 
+#selecting the value of k that gives the greatest accuracy
+set.seed(457)
+Bankcontrol <- trainControl(method= "repeatedcv", number = 3, repeats = 2)
+searchGrid = expand.grid(k=1:12)
+knn.model = train(Personal.Loan~., data = train.df, method = 'knn', tuneGrid = searchGrid,trControl = Bankcontrol)
+knn.model
+```
+
+```{r}
+#3 Question 
+# confusion matrix for the validation data that results from using the best k.
+predictions <- predict(knn.model,validation.df)
+confusionMatrix(predictions,validation.df$Personal.Loan)
+
+```
+```{r}
+#4 Question
+#constructing a prediction data frame and selecting the optimal k value 
+ub.predict_Norm <- data.frame(Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, high_school = 0, under_graduation = 1, graduation = 0, Mortgage = 0, Securities.Account =0, CD.Account = 0, Online = 1, CreditCard = 1)
+#A Customers are categorized using the trained model with the greatest k value.
+numericVariables<-c("Age","Experience", "Income","Family","CCAvg","Mortgage")
+normValues<-preProcess(train.df[,numericVariables],
+                            method=c("center","scale"))
+train_norm<-predict(normValues,train.df)
+val_norm<-predict(normValues,validation.df)
+dim(train_norm)
+dim(ub.predict_Norm)
+prediction <- class::knn(train=as.data.frame(train_norm),test=as.data.frame(ub.predict_Norm[,-c(7)]),cl=train.df$Personal.Loan, k=3)
+print(prediction)
+```
+```{r}
+#5 Question 
+#dividing the information into three categories: training (50%), validation (30%), and test (20%).
+train_size = 0.5
+Train_index = createDataPartition(Universal_bank$Personal.Loan, p = 0.5, list = FALSE)
+train.df = Bank_norm[Train_index,]
+test_size = 0.2
+Test_index = createDataPartition(Universal_bank$Personal.Loan, p = 0.2, list = FALSE)
+Test.df = Bank_norm[Test_index,]
+valid_size = 0.3
+Validation_index = createDataPartition(Universal_bank$Personal.Loan, p = 0.3, list = FALSE)
+validation.df = Bank_norm[Validation_index,]
+Testknn <- knn(train = train.df[,-8], test = Test.df[,-8], cl = train.df[,8], k =3)
+Validationknn <- knn(train = train.df[,-8], test = validation.df[,-8], cl = train.df[,8], k =3)
+Trainknn <- knn(train = train.df[,-8], test = train.df[,-8], cl = train.df[,8], k =3)
+confusionMatrix(Testknn, Test.df[,8])
+```
+```{r}
+
+#The model showed good performance with an accuracy of almost 96.2% in the analysis of the k-Nearest Neighbors 
+#(k-NN) #model for predicting acceptance of personal loans, and a Kappa score suggesting high agreement between #forecasts and actual outcomes (Kappa = 0.7427). The sensitivity of the model was excellent; it identified roughly #99.67% of loan acceptances accurately. But at roughly 63.54%, its specificity—that is, its ability to correctly #detect non-loan acceptances—was comparatively lower.The percentage of accurate "loan acceptance" forecastsv #represented by the positive predictive value was roughly 96.26%, whereas the negative predictive value for "no loan #acceptance" predictions was almost 95.31%. The average balanced accuracy, at 81.6%, strikes a compromise between #specificity and sensitivity. Interestingly, the training accuracy was just slightly greater than the test and #validation sets' accuracy, suggesting that the model does a good job of generalizing to new data. In conclusion, 
+#the k-NN model shows promise in detecting loan acceptances, but its precision for non-loan acceptances may need to #be increased.
+```
+
